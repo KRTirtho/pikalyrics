@@ -16,8 +16,12 @@ import {
 import { LyricInput } from "components/LyricInput";
 import YouTube from "react-youtube";
 import { useRef, useState } from "react";
-import { BsFillPauseCircleFill, BsFillPlayCircleFill } from "react-icons/bs";
+import {
+  BsFillPauseCircleFill,
+  BsFillPlayCircleFill,
+} from "react-icons/bs";
 import { useHotkeys } from "react-hotkeys-hook";
+import getYouTubeID from "get-youtube-id";
 
 const playbackRate = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
@@ -25,7 +29,8 @@ const Home: NextPage = () => {
   const [isEditing, setIsEditing] = useState(true);
   const [urlValue, setUrlValue] = useState("");
 
-  const videoId = urlValue.split("?v=")[urlValue.split("?v=").length - 1];
+
+  const videoId = getYouTubeID(urlValue);
 
   const youtubeRef = useRef<YouTube>(null);
 
@@ -50,21 +55,20 @@ const Home: NextPage = () => {
           />
         </InputGroup>
         <HStack>
-          {
-            /*urlValue*/ true && (
-              <YouTube
-                videoId={videoId}
-                opts={{
-                  width: "350",
-                  height: "180",
-                }}
-                onPlay={() => setIsEditing(false)}
-                onPause={() => setIsEditing(true)}
-                onEnd={() => setIsEditing(true)}
-                ref={youtubeRef}
-              />
-            )
-          }
+          {videoId && (
+            <YouTube
+              videoId={videoId}
+              opts={{
+                width: "350",
+                height: "180",
+              }}
+              onPlay={() => setIsEditing(false)}
+              onPause={() => setIsEditing(true)}
+              onEnd={() => setIsEditing(true)}
+              ref={youtubeRef}
+            />
+          )}
+
           <IconButton
             fontSize="45"
             aria-label="Play/Pause"
@@ -101,7 +105,11 @@ const Home: NextPage = () => {
           </Slider>
         </HStack>
       </VStack>
-      <LyricInput isEditing={isEditing} youtubeRef={youtubeRef} />
+      <LyricInput
+        isEditing={isEditing}
+        youtubeRef={youtubeRef}
+        youtubeId={videoId}
+      />
     </HStack>
   );
 };

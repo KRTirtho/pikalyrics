@@ -1,0 +1,33 @@
+version: "3.3"
+
+services:
+  pikalyrics:
+    depends_on:
+      - postgres
+    # ports:
+      # - 3000:3000
+    build:
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:simple@postgres:5432/lyricsdb
+    volumes:
+      - .:/home/node/app
+      - /home/node/app/node_modules
+    command: sleep 4206942069
+
+  postgres:
+    image: postgres:14-alpine
+    restart: always
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - /home/node/app/.docker
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=simple
+      - POSTGRES_DB=lyricsdb
+
+volumes:
+  pgdata:

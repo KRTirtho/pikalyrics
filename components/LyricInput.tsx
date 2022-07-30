@@ -9,18 +9,22 @@ import {
   Heading,
   HStack,
   IconButton,
-  Text,
   Textarea,
+  useDisclosure,
   VStack,
 } from "@chakra-ui/react";
+import { Prisma } from "@prisma/client";
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
 import { useProgressScroll } from "hooks/useProgressScroll";
+import { useYtProgress } from "hooks/useYtProgress";
 import { FC, RefObject, useEffect, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { AiTwotoneEdit, AiTwotoneEye } from "react-icons/ai";
+import { BsFullscreen } from "react-icons/bs";
 import TextAreaAutoSize from "react-textarea-autosize";
 import YouTube from "react-youtube";
+import ViewSyncedLyrics from "./ViewSyncedLyrics";
 
 dayjs.extend(duration);
 
@@ -29,9 +33,10 @@ const durationRegex = /\d{2}:\d{2}/g;
 interface Props {
   isEditing: boolean;
   youtubeRef: RefObject<YouTube>;
+  youtubeId: string | null;
 }
 
-interface Timestamps {
+export interface Timestamps {
   subtitle: string;
   time: number;
   index: number;
@@ -40,13 +45,13 @@ interface Timestamps {
 export const LyricInput: FC<Props> = ({
   isEditing: parentIsEditing,
   youtubeRef,
+  youtubeId,
 }) => {
   const [lyrics, setLyrics] = useState("");
-
+  const { isOpen, onOpen, onClose } = useDisclosure();
   const [timestamps, setTimestamps] = useState<Timestamps[]>([]);
 
   // progress in seconds
-  const [progress, setProgress] = useState(0);
 
   const [isEditing, setIsEditing] = useState(parentIsEditing);
 
@@ -54,15 +59,7 @@ export const LyricInput: FC<Props> = ({
     setIsEditing(parentIsEditing);
   }, [parentIsEditing]);
 
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const time = Math.ceil(
-        await youtubeRef.current?.internalPlayer.getCurrentTime()
-      );
-      if (time != progress) setProgress(time);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [youtubeRef, progress]);
+  const [progress] = useYtProgress(youtubeRef);
 
   const [duration, setDuration] = useState(0);
 
@@ -87,122 +84,175 @@ export const LyricInput: FC<Props> = ({
   });
 
   return (
-    <chakra.div pt="5" w="full">
-      <HStack pb="2">
-        <ButtonGroup isAttached size="sm">
-          <IconButton
-            variant={!isEditing ? "outline" : undefined}
-            colorScheme={isEditing ? "twitter" : undefined}
-            aria-label="Edit"
-            onClick={() => setIsEditing(true)}
-          >
-            <AiTwotoneEdit />
-          </IconButton>
-          <IconButton
-            variant={isEditing ? "outline" : undefined}
-            colorScheme={!isEditing ? "twitter" : undefined}
-            aria-label="Edit"
-            onClick={() => setIsEditing(false)}
-          >
-            <AiTwotoneEye />
-          </IconButton>
-        </ButtonGroup>
-        <Heading size="md">Mode: {isEditing ? "Editing" : "Preview"}</Heading>
-        <Checkbox
-          colorScheme="twitter"
-          isChecked={isAutoScroll}
-          onChange={(e) => setIsAutoScroll(e.target.checked)}
-        >
-          Auto Scroll
-        </Checkbox>
-        <Button borderRadius="full" onClick={() => setTimestamps([])}>
-          Reset
-        </Button>
-        <Button
-          colorScheme="green"
-          borderRadius="full"
-          disabled={timestamps.length !== lyrics.split("\n").length}
-        >
-          Publish
-        </Button>
-      </HStack>
-      {isEditing ? (
-        <Textarea
-          value={lyrics}
-          onChange={(e) => setLyrics(e.target.value)}
-          minH="unset"
-          overflow="hidden"
-          w="100%"
-          resize="none"
-          minRows={10}
-          as={TextAreaAutoSize}
+    <>
+      {isOpen && youtubeId && (
+        <ViewSyncedLyrics
+          youtubeId={youtubeId}
+          timestamps={timestamps}
+          onClose={onClose}
         />
-      ) : (
-        <VStack
-          align="start"
-          ref={scrollRef}
-          maxH="80vh"
-          overflow="auto"
-          w="full"
-        >
-          {lyrics.split("\n").map((line, index) => (
-            <LyricTimeEditable
-              key={line + index}
-              line={line}
-              index={index}
-              isEditing={isEditing}
-              theLine={timestamps.find(
-                (s) => s.subtitle == line && s.index == index
-              )}
-              onClick={() => {
-                if (isEditing) return;
-                if (timestamps.length === 0) {
-                  setStartTime(progress);
-                }
-
-                setTimestamps([
-                  ...timestamps.filter((s) => s.index != index),
-                  { index, subtitle: line, time: progress },
-                ]);
-              }}
-              onEditDone={(e) => {
-                const [mm, ss] = e.split(":");
-
-                setTimestamps(
-                  timestamps.map((s) => {
-                    if (s.subtitle == line && s.index == index) {
-                      return {
-                        ...s,
-                        time: Math.ceil(
-                          dayjs
-                            .duration({
-                              minutes: parseInt(mm),
-                              seconds: parseInt(ss),
-                            })
-                            .asSeconds()
-                        ),
-                      };
-                    }
-                    return s;
-                  })
-                );
-              }}
-            />
-          ))}
-        </VStack>
       )}
-    </chakra.div>
+      <chakra.div pt="5" w="full">
+        <HStack pb="2">
+          <ButtonGroup isAttached size="sm">
+            <IconButton
+              variant={!isEditing ? "outline" : undefined}
+              colorScheme={isEditing ? "twitter" : undefined}
+              aria-label="Edit"
+              onClick={() => setIsEditing(true)}
+            >
+              <AiTwotoneEdit />
+            </IconButton>
+            <IconButton
+              variant={isEditing ? "outline" : undefined}
+              colorScheme={!isEditing ? "twitter" : undefined}
+              aria-label="Edit"
+              onClick={() => setIsEditing(false)}
+            >
+              <AiTwotoneEye />
+            </IconButton>
+          </ButtonGroup>
+          <Heading size="md">Mode: {isEditing ? "Editing" : "Preview"}</Heading>
+          <Checkbox
+            colorScheme="twitter"
+            isChecked={isAutoScroll}
+            onChange={(e) => setIsAutoScroll(e.target.checked)}
+          >
+            Auto Scroll
+          </Checkbox>
+          <IconButton
+            aria-label="View in Fullscreen"
+            icon={<BsFullscreen />}
+            size="sm"
+            variant="outline"
+            onClick={onOpen}
+            disabled={!youtubeId || timestamps.length === 0}
+          />
+          <Button
+            borderRadius="full"
+            onClick={() => {
+              setTimestamps([]);
+              youtubeRef.current?.internalPlayer.seekTo(0);
+              youtubeRef.current?.internalPlayer.playVideo();
+            }}
+          >
+            Reset
+          </Button>
+          <Button
+            colorScheme="green"
+            borderRadius="full"
+            disabled={timestamps.length !== lyrics.split("\n").length}
+            type="submit"
+            onClick={async () => {
+              if (!youtubeId) return;
+              const iframe: HTMLIFrameElement =
+                await youtubeRef.current?.internalPlayer.getIframe();
+
+              const headers = new Headers();
+              headers.set("content-type", "application/json");
+              const res = await fetch("/api/publish", {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                  owner: "Lua Dipa",
+                  title: iframe.title,
+                  youtubeId,
+                  authors: [],
+                  syncedLyrics: timestamps.reduce<Record<string, string>>(
+                    (acc, val) => {
+                      acc[val.time.toString()] = val.subtitle;
+                      return acc;
+                    },
+                    {}
+                  ),
+                } as Prisma.LyricsCreateWithoutUploaderInput),
+              });
+              console.log(await res.json());
+            }}
+          >
+            Publish
+          </Button>
+        </HStack>
+        {isEditing ? (
+          <Textarea
+            value={lyrics}
+            onChange={(e) => setLyrics(e.target.value)}
+            minH="unset"
+            overflow="hidden"
+            w="100%"
+            resize="none"
+            minRows={10}
+            as={TextAreaAutoSize}
+          />
+        ) : (
+          <VStack
+            align="start"
+            ref={scrollRef}
+            maxH="80vh"
+            overflow="auto"
+            w="full"
+          >
+            {lyrics.split("\n").map((line, index) => (
+              <LyricTimeEditable
+                key={line + index}
+                line={line}
+                index={index}
+                isEditing={isEditing}
+                theLine={timestamps.find(
+                  (s) => s.subtitle == line && s.index == index
+                )}
+                isAutoScroll={isAutoScroll}
+                onClick={() => {
+                  if (isEditing) return;
+                  if (timestamps.length === 0) {
+                    setStartTime(progress);
+                  }
+
+                  setTimestamps([
+                    ...timestamps.filter((s) => s.index != index),
+                    { index, subtitle: line, time: progress },
+                  ]);
+                }}
+                onEditDone={(e) => {
+                  const [mm, ss] = e.split(":");
+
+                  setTimestamps(
+                    timestamps.map((s) => {
+                      if (s.subtitle == line && s.index == index) {
+                        return {
+                          ...s,
+                          time: Math.ceil(
+                            dayjs
+                              .duration({
+                                minutes: parseInt(mm),
+                                seconds: parseInt(ss),
+                              })
+                              .asSeconds()
+                          ),
+                        };
+                      }
+                      return s;
+                    })
+                  );
+                }}
+              />
+            ))}
+          </VStack>
+        )}
+      </chakra.div>
+    </>
   );
 };
 
 const LyricTimeEditable: FC<{
+  isAutoScroll: boolean;
   line: string;
   isEditing: boolean;
   index: number;
   theLine: Timestamps | undefined;
   onClick: () => void;
   onEditDone: (e: string) => void;
-}> = ({ line, index, theLine, onClick, onEditDone }) => {
+}> = ({ line, index, theLine, isAutoScroll, onClick, onEditDone }) => {
   const hasLine = !!theLine;
   const lineTime = theLine?.time;
   const defaultDuration = lineTime
@@ -218,7 +268,7 @@ const LyricTimeEditable: FC<{
 
   return (
     <HStack
-      style={{ marginTop: index == 0 ? "50%" : 2 }}
+      style={{ marginTop: index == 0 && isAutoScroll ? "50%" : 2 }}
       align="center"
       spacing="1"
     >

@@ -8,26 +8,30 @@ import {
   VStack,
   CloseButton,
   Button,
-  VisuallyHidden,
   InputGroup,
   InputLeftElement,
   Input,
   Avatar,
   Box,
   Heading,
+  Link,
 } from "@chakra-ui/react";
+import { useSession } from "next-auth/react";
 import {
-  AiFillBell,
   AiFillHome,
   AiOutlineInbox,
   AiOutlineMenu,
   AiOutlineSearch,
 } from "react-icons/ai";
 import { BsFillCameraVideoFill } from "react-icons/bs";
+import NavLink from "next/link";
 
 export const Navbar = () => {
   const bg = useColorModeValue("white", "gray.800");
   const mobileNav = useDisclosure();
+  const { data: session } = useSession();
+  console.log("session:", session);
+
   return (
     <>
       <chakra.header
@@ -103,16 +107,12 @@ export const Navbar = () => {
                 </Button>
               </VStack>
             </Box>
-            <chakra.a
-              href="/"
-              title="Choc Home Page"
-              display="flex"
-              alignItems="center"
-            >
+            <NavLink href="/" passHref>
               {/*  */}
-              <Heading size="md">Pika Lyrics</Heading>
-              <VisuallyHidden>Choc</VisuallyHidden>
-            </chakra.a>
+              <Heading as={Link} size="md">
+                Pika Lyrics
+              </Heading>
+            </NavLink>
 
             <HStack
               spacing={3}
@@ -147,30 +147,15 @@ export const Navbar = () => {
               </InputLeftElement>
               <Input type="tel" placeholder="Search..." />
             </InputGroup>
-
-            <chakra.a
-              p={3}
-              color="gray.800"
-              _dark={{
-                color: "inherit",
-              }}
-              rounded="sm"
-              _hover={{
-                color: "gray.800",
-                _dark: {
-                  color: "gray.600",
-                },
-              }}
-            >
-              <AiFillBell />
-              <VisuallyHidden>Notifications</VisuallyHidden>
-            </chakra.a>
-
-            <Avatar
-              size="sm"
-              name="Dan Abrahmov"
-              src="https://bit.ly/dan-abramov"
-            />
+            {session ? (
+              <Avatar size="sm" src={session?.user?.image ?? undefined} />
+            ) : (
+              <NavLink href="/login" passHref>
+                <Button variant="link" as={Link} colorScheme="pink">
+                  Login
+                </Button>
+              </NavLink>
+            )}
           </HStack>
         </Flex>
       </chakra.header>
