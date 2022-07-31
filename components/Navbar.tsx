@@ -25,12 +25,12 @@ import {
 } from "react-icons/ai";
 import { BsFillCameraVideoFill } from "react-icons/bs";
 import NavLink from "next/link";
+import { IoMusicalNotesOutline } from "react-icons/io5";
 
 export const Navbar = () => {
   const bg = useColorModeValue("white", "gray.800");
   const mobileNav = useDisclosure();
   const { data: session } = useSession();
-  console.log("session:", session);
 
   return (
     <>
@@ -98,13 +98,17 @@ export const Navbar = () => {
                 >
                   Inbox
                 </Button>
-                <Button
-                  w="full"
-                  variant="ghost"
-                  leftIcon={<BsFillCameraVideoFill />}
-                >
-                  Videos
-                </Button>
+
+                <NavLink href="/create">
+                  <Button
+                    w="full"
+                    colorScheme="twitter"
+                    variant="ghost"
+                    leftIcon={<IoMusicalNotesOutline />}
+                  >
+                    Create Lyrics
+                  </Button>
+                </NavLink>
               </VStack>
             </Box>
             <NavLink href="/" passHref>
@@ -127,13 +131,15 @@ export const Navbar = () => {
               <Button variant="ghost" leftIcon={<AiOutlineInbox />} size="sm">
                 Inbox
               </Button>
-              <Button
-                variant="ghost"
-                leftIcon={<BsFillCameraVideoFill />}
-                size="sm"
-              >
-                Videos
-              </Button>
+              <NavLink href="/create">
+                <Button
+                  colorScheme="twitter"
+                  leftIcon={<IoMusicalNotesOutline />}
+                  size="sm"
+                >
+                  Create Lyrics
+                </Button>
+              </NavLink>
             </HStack>
           </HStack>
           <HStack

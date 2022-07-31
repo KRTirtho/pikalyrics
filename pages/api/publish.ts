@@ -39,6 +39,7 @@ export default async function publishLyric(
         uploader: { connect: { id: user!.id } },
       },
     });
+
     res.status(201);
     res.json(lyrics);
   } catch (e) {

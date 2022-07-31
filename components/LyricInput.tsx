@@ -9,7 +9,9 @@ import {
   Heading,
   HStack,
   IconButton,
+  Text,
   Textarea,
+  Tooltip,
   useDisclosure,
   VStack,
 } from "@chakra-ui/react";
@@ -24,6 +26,7 @@ import { AiTwotoneEdit, AiTwotoneEye } from "react-icons/ai";
 import { BsFullscreen } from "react-icons/bs";
 import TextAreaAutoSize from "react-textarea-autosize";
 import YouTube from "react-youtube";
+import { KeyTooltip } from "./KeyTooltip";
 import ViewSyncedLyrics from "./ViewSyncedLyrics";
 
 dayjs.extend(duration);
@@ -34,6 +37,8 @@ interface Props {
   isEditing: boolean;
   youtubeRef: RefObject<YouTube>;
   youtubeId: string | null;
+  mainArtist: string;
+  artists: string[];
 }
 
 export interface Timestamps {
@@ -43,9 +48,11 @@ export interface Timestamps {
 }
 
 export const LyricInput: FC<Props> = ({
-  isEditing: parentIsEditing,
+  isEditing: isPlaying,
   youtubeRef,
   youtubeId,
+  artists,
+  mainArtist,
 }) => {
   const [lyrics, setLyrics] = useState("");
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -53,11 +60,7 @@ export const LyricInput: FC<Props> = ({
 
   // progress in seconds
 
-  const [isEditing, setIsEditing] = useState(parentIsEditing);
-
-  useEffect(() => {
-    setIsEditing(parentIsEditing);
-  }, [parentIsEditing]);
+  const [isEditing, setIsEditing] = useState(true);
 
   const [progress] = useYtProgress(youtubeRef);
 
@@ -83,6 +86,10 @@ export const LyricInput: FC<Props> = ({
     setIsAutoScroll((prev) => !prev);
   });
 
+  useHotkeys("p", () => {
+    setIsEditing((prev) => !prev);
+  });
+
   return (
     <>
       {isOpen && youtubeId && (
@@ -95,39 +102,51 @@ export const LyricInput: FC<Props> = ({
       <chakra.div pt="5" w="full">
         <HStack pb="2">
           <ButtonGroup isAttached size="sm">
-            <IconButton
-              variant={!isEditing ? "outline" : undefined}
-              colorScheme={isEditing ? "twitter" : undefined}
-              aria-label="Edit"
-              onClick={() => setIsEditing(true)}
-            >
-              <AiTwotoneEdit />
-            </IconButton>
-            <IconButton
-              variant={isEditing ? "outline" : undefined}
-              colorScheme={!isEditing ? "twitter" : undefined}
-              aria-label="Edit"
-              onClick={() => setIsEditing(false)}
-            >
-              <AiTwotoneEye />
-            </IconButton>
+            <KeyTooltip keyboardKey="p" label="Text Editing Mode">
+              <IconButton
+                variant={!isEditing ? "outline" : undefined}
+                colorScheme={isEditing ? "twitter" : undefined}
+                aria-label="Edit"
+                onClick={() => setIsEditing(true)}
+              >
+                <AiTwotoneEdit />
+              </IconButton>
+            </KeyTooltip>
+            <KeyTooltip label="Sync/Time Editing Mode" keyboardKey="p">
+              <IconButton
+                variant={isEditing ? "outline" : undefined}
+                colorScheme={!isEditing ? "twitter" : undefined}
+                aria-label="Edit"
+                onClick={() => setIsEditing(false)}
+              >
+                <AiTwotoneEye />
+              </IconButton>
+            </KeyTooltip>
           </ButtonGroup>
           <Heading size="md">Mode: {isEditing ? "Editing" : "Preview"}</Heading>
-          <Checkbox
-            colorScheme="twitter"
-            isChecked={isAutoScroll}
-            onChange={(e) => setIsAutoScroll(e.target.checked)}
+          <KeyTooltip
+            keyboardKey="x"
+            label="Automatically scroll"
+            shouldWrapChildren
           >
-            Auto Scroll
-          </Checkbox>
-          <IconButton
-            aria-label="View in Fullscreen"
-            icon={<BsFullscreen />}
-            size="sm"
-            variant="outline"
-            onClick={onOpen}
-            disabled={!youtubeId || timestamps.length === 0}
-          />
+            <Checkbox
+              colorScheme="twitter"
+              isChecked={isAutoScroll}
+              onChange={(e) => setIsAutoScroll(e.target.checked)}
+            >
+              Auto Scroll
+            </Checkbox>
+          </KeyTooltip>
+          <Tooltip label="Show Result in Fullscreen" shouldWrapChildren>
+            <IconButton
+              aria-label="View in Fullscreen"
+              icon={<BsFullscreen />}
+              size="sm"
+              variant="outline"
+              onClick={onOpen}
+              disabled={!youtubeId || timestamps.length === 0}
+            />
+          </Tooltip>
           <Button
             borderRadius="full"
             onClick={() => {
@@ -144,7 +163,7 @@ export const LyricInput: FC<Props> = ({
             disabled={timestamps.length !== lyrics.split("\n").length}
             type="submit"
             onClick={async () => {
-              if (!youtubeId) return;
+              if (!youtubeId || mainArtist.length === 0) return;
               const iframe: HTMLIFrameElement =
                 await youtubeRef.current?.internalPlayer.getIframe();
 
@@ -154,10 +173,10 @@ export const LyricInput: FC<Props> = ({
                 method: "POST",
                 headers,
                 body: JSON.stringify({
-                  owner: "Lua Dipa",
+                  owner: mainArtist,
                   title: iframe.title,
                   youtubeId,
-                  authors: [],
+                  authors: artists,
                   syncedLyrics: timestamps.reduce<Record<string, string>>(
                     (acc, val) => {
                       acc[val.time.toString()] = val.subtitle;
@@ -272,6 +291,7 @@ const LyricTimeEditable: FC<{
       align="center"
       spacing="1"
     >
+      {/* <Text>{value}</Text> */}
       <Editable
         color="coral"
         fontWeight="bold"
@@ -292,7 +312,7 @@ const LyricTimeEditable: FC<{
       </Editable>
       <Button
         height="6"
-        variant={!hasLine ? "outline" : "ghost"}
+        variant={!hasLine ? "outline" : "solid"}
         colorScheme={hasLine ? "teal" : undefined}
         onClick={onClick}
         borderRadius="0"
